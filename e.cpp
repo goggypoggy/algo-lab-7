@@ -39,7 +39,7 @@ void DebugOutput(Graph& G) {
 void EdgeRelaxation(Graph& G, std::vector<Edge>& edges) {
     auto prev_s = G.s;
     for (auto e : edges) {
-        if (prev_s[e.from] == -INFINITY) {
+        if (std::isinf(prev_s[e.from])) {
             continue;
         }
 
