@@ -27,6 +27,7 @@ struct Graph {
     std::vector<std::vector<Edge>> edges;
     std::vector<int64_t> d;
     std::vector<char> status;
+    std::vector<bool> visited;
 };
 
 void DebugOutput(Graph& G) {
@@ -38,14 +39,44 @@ void DebugOutput(Graph& G) {
     std::cout << std::endl
     << "d:       ";
     for (int i = 0; i < G.V; ++i) {
-        std::cout << G.d[i] << ' ';
+        if (G.d[i] == kInf) {
+            std::cout << "* ";
+        } else {
+            std::cout << G.d[i] << ' ';
+        }
+    }
+    std::cout << std::endl
+    << "visited: ";
+    for (int i = 0; i < G.V; ++i) {
+        std::cout << G.visited[i] << ' ';
     }
     std::cout << std::endl << std::endl;
 }
 
+void DFS_Visit(Graph& G, int node) {
+    G.visited[node] = true;
+    for (auto edge : G.edges[node]) {
+        if (!G.visited[edge.to]) {
+            DFS_Visit(G, edge.to);
+        }
+    }
+}
+
+void EdgeRelaxation(Graph& G, std::vector<Edge>& edges) {
+    for (auto e : edges) {
+        if (G.d[e.from] == kInf) {
+            continue;
+        }
+
+        int64_t new_dist = G.d[e.from] + e.len;
+        if (new_dist < G.d[e.to]) {
+            G.d[e.to] = new_dist;
+        }
+    }
+}
+
 void BellmanFord(Graph& G, int S) {
     std::vector<Edge> edges;
-    edges.resize(G.E);
 
     for (int i = 0; i < G.V; ++i) {
         G.d[i] = kInf;
@@ -58,20 +89,35 @@ void BellmanFord(Graph& G, int S) {
         }
     }
 
-    DebugOutput(G);
+    // DebugOutput(G);
+    
+    for (int i = 0; i < G.V - 1; ++i) {
+        EdgeRelaxation(G, edges);
+        // DebugOutput(G);
+    }
 
-    for (int i = 0; i < G.V; ++i) {
-        for (auto e : edges) {
-            if (G.d[e.from] == kInf) {
-                continue;
-            }
+    // std::cout << "\nV-th relaxation:\n";
 
-            int new_dist = G.d[e.from] + e.len;
-            if (G.d[e.to] == kInf || new_dist < G.d[e.to]) {
-                G.d[e.to] = new_dist;
+    auto prev_d = G.d;
+    EdgeRelaxation(G, edges);
+    // DebugOutput(G);
+
+    if (prev_d != G.d) {
+        for (int i = 0; i < G.V; ++i) {
+            if (prev_d[i] != G.d[i] && !G.visited[i]) {
+                DFS_Visit(G, i);
             }
         }
-        
+    }
+
+    // DebugOutput(G);
+
+    for (int i = 0; i < G.V; ++i) {
+        if (G.visited[i]) {
+            G.status[i] = '-';
+        } else if (G.d[i] == kInf) {
+            G.status[i] = '*';
+        }
     }
 }
 
@@ -84,16 +130,20 @@ int main(int, char**) {
 
     G.edges.resize(G.V);
     G.d.resize(G.V);
+    G.status.resize(G.V);
+    G.visited.resize(G.V);
     
     for (int i = 0; i < G.V; ++i) {
         G.edges[i] = {};
         G.d[i] = kInf;
+        G.status[i] = '#';
+        G.visited[i] = false;
     }
     
     for (int i = 0; i < G.E; ++i) {
         int from;
         int to;
-        int len;
+        int64_t len;
         
         std::cin >> from >> to >> len;
         
@@ -101,6 +151,17 @@ int main(int, char**) {
     }
     
     BellmanFord(G, S);
+
+    for (int i = 0; i < G.V; ++i) {
+        if (G.status[i] == '#') {
+            std::cout << G.d[i];
+        } else {
+            std::cout << G.status[i];
+        }
+        if (i != G.V - 1) {
+            std::cout << std::endl;
+        }
+    }
 
     return 0;
 }
