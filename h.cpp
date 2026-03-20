@@ -10,6 +10,8 @@ using flt = double;
 struct Point {
     flt x = 0;
     flt y = 0;
+
+    int label = 0;
 };
 
 struct Edge;
@@ -139,9 +141,9 @@ flt Det3x3(
     flt c0, flt c1, flt c2
 ) {
     return
-          a0 * (b1 * c2 - c1 * c2)
+          a0 * (b1 * c2 - c1 * b2)
         - b0 * (a1 * c2 - c1 * a2)
-        + c0 * (a1 * b2 - b1 * b2);
+        + c0 * (a1 * b2 - b1 * a2);
 }
 
 flt Det4x4(
@@ -208,22 +210,31 @@ bool InCircle(
     const Point& D
 ) {
     return Det4x4(
-        A.x, A.y, A.x * A.x + A.y + A.y, 1,
-        B.x, B.y, B.x * B.x + B.y + B.y, 1,
-        C.x, C.y, C.x * C.x + C.y + C.y, 1,
-        D.x, D.y, D.x * D.x + D.y + D.y, 1
+        A.x, A.y, A.x * A.x + A.y * A.y, 1,
+        B.x, B.y, B.x * B.x + B.y * B.y, 1,
+        C.x, C.y, C.x * C.x + C.y * C.y, 1,
+        D.x, D.y, D.x * D.x + D.y * D.y, 1
     ) > static_cast<flt>(0);
 }
 
-Edge AddEdge(Graph& G, int a, int b) {
+flt Angle(const Edge& edge) {
+    flt dx = edge.to().x - edge.from().x;
+    flt dy = edge.to().y - edge.from().y;
+
+    return std::atan2(dy, dx);
+};
+
+Edge MakeDirection(Graph& G, int a, int b) {
     Edge e = {&G, a, b};
 
     auto start_p = e.from();
     auto end_p = e.to();
 
+    flt new_angle = Angle(e);
+
     int i;
     for (i = 0; i < G.e[a].size(); ++i) {
-        if (LeftOf(end_p, G.e[a][i])) {
+        if (new_angle > Angle(G.e[a][i])) {
             break;
         }
     }
@@ -231,7 +242,7 @@ Edge AddEdge(Graph& G, int a, int b) {
 
     int j;
     for (j = 0; j < G.e_incoming[b].size(); ++j) {
-        if (LeftOf(start_p, G.e_incoming[b][j])) {
+        if (new_angle < Angle(G.e_incoming[b][j])) {
             break;
         }
     }
@@ -241,14 +252,19 @@ Edge AddEdge(Graph& G, int a, int b) {
 };
 
 Edge MakeEdge(Graph& G, int a, int b) {
-    AddEdge(G, b, a);
+    MakeDirection(G, b, a);
 
-    return AddEdge(G, a, b);
+    return MakeDirection(G, a, b);
+}
+
+void DeleteDirection(Edge e) {
+    std::erase(e.Gptr->e_incoming[e.to_i], e);
+    std::erase(e.Gptr->e[e.from_i], e);
 }
 
 void DeleteEdge(Edge e) {
-    std::erase(e.Gptr->e_incoming[e.to_i], e);
-    std::erase(e.Gptr->e[e.from_i], e);
+    DeleteDirection(e);
+    DeleteDirection(e.Sym());
 }
 
 // [first; last)
@@ -282,7 +298,7 @@ std::pair<Edge, Edge> BuildDeloneOnSub(Graph& G, int first, int last) {
 
     auto ld = BuildDeloneOnSub(G, first, mid);
     auto ldo = ld.first;
-    auto ldi = ld.first;
+    auto ldi = ld.second;
     
     auto rd = BuildDeloneOnSub(G, mid, last);
     auto rdi = rd.first;
@@ -456,31 +472,56 @@ int main(int, char**) {
 
     for (int i = 0; i < N; ++i) {
         std::cin >> T.v[i].x >> T.v[i].y;
+        T.v[i].label = i;
     }
 
     BuildDelone(T);
 
-    Output(T);
+    // Output(T);
 
-    // std::vector<Edge> mst_edges = BuildMST(T);
+    std::vector<Edge> mst_edges = BuildMST(T);
 
     // std::cout << WeightOfMST(mst_edges);
 
-    // std::cout << WeightOfMST(mst_edges) << std::endl;
+    std::cout << WeightOfMST(mst_edges) << std::endl;
 
-    // for (auto e : mst_edges) {
-    //     std::cout << e.from_i + 1 << ' ' << e.to_i + 1 << std::endl;
-    // }
-
-    // Output(T);
-
-
-    // auto test = T.e[2][0];
-    // printf("\n\ntest: %i -> %i\n", test.from_i, test.to_i);
-    // test = test.Oprev();
-    // printf("\n\ntest: %i -> %i\n", test.from_i, test.to_i);
-
-    // Graph G = BuildMST(T);
+    for (auto e : mst_edges) {
+        std::cout << e.from().label + 1 << ' ' << e.to().label + 1 << std::endl;
+    }
 
     return 0;
 }
+
+/*
+17
+0 0
+2 2
+3 4
+3 7
+3 10
+5 9
+6 3
+6 6
+6 11
+8 4
+8 7
+8 9
+8 11
+8 13
+10 4
+10 6
+10 10
+
+11
+0 2
+2 2
+2 9
+3 6
+4 0
+4 3
+5 5
+5 8
+6 2
+6 10
+8 7
+*/
