@@ -73,7 +73,7 @@ bool BellmanFord(Graph& G, int S, float start_sum) {
     // DebugOutput(G);
 
     for (int i = 0; i < G.V; ++i) {
-        if (prev_s[i] < G.s[i]) {
+        if (prev_s[i] != -INFINITY && prev_s[i] < G.s[i]) {
             return true;
         }
     }
